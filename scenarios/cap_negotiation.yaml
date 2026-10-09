@@ -1,0 +1,17 @@
+name: "Scenario 7 — asks for 90 lakh, accepts the 75 lakh cap"
+description: >
+  Above-cap requests must NOT be rejected outright. The agent offers 75 lakh; on
+  acceptance the stored amount is rewritten to exactly 75,00,000 and the flow continues.
+customer_name: "Vikram Malhotra"
+language: "en-IN"
+turns:
+  - customer: "Yes this is Vikram"
+    facts: {customer_verified: true}
+  - customer: "I need ninety lakh"
+    facts: {loan_amount: 9000000}
+  - customer: "Yes, seventy-five lakh is fine"
+    facts: {cap_offer_accepted: true}
+  - customer: "It's a residential flat"
+    facts: {property_type: residential}
+expect:
+  lead_status: "in_progress"

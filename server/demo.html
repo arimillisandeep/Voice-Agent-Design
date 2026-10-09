@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Home Credit LAP Agent — Rule Engine Demo</title>
+<style>
+  :root{
+    --bg:#0b1020; --panel:#141b31; --panel2:#1b2440; --line:#26314f;
+    --text:#e8ecf7; --dim:#93a0c0; --accent:#5b8cff; --ok:#39d98a;
+    --warn:#ffb84d; --bad:#ff6b6b; --chip:#1f2a47;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font:14px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  header{
+    padding:18px 22px; border-bottom:1px solid var(--line);
+    background:linear-gradient(180deg,#131b33,#0d1428);
+    display:flex; flex-wrap:wrap; gap:12px; align-items:center; justify-content:space-between;
+  }
+  h1{font-size:16px; margin:0; letter-spacing:.2px}
+  .sub{color:var(--dim); font-size:12px; margin-top:3px}
+  .pill{
+    background:var(--chip); border:1px solid var(--line); color:var(--dim);
+    padding:4px 10px; border-radius:999px; font-size:11px;
+  }
+  main{display:grid; grid-template-columns:minmax(0,1fr) 340px; gap:16px; padding:16px 22px 26px}
+  @media (max-width:940px){ main{grid-template-columns:minmax(0,1fr)} }
+  .card{background:var(--panel); border:1px solid var(--line); border-radius:12px; overflow:hidden}
+  .card > h2{
+    margin:0; padding:11px 14px; font-size:12px; text-transform:uppercase;
+    letter-spacing:.09em; color:var(--dim); border-bottom:1px solid var(--line); background:var(--panel2);
+  }
+  #log{padding:14px; height:min(56vh,520px); overflow-y:auto; display:flex; flex-direction:column; gap:10px}
+  .row{display:flex; flex-direction:column; gap:4px; max-width:88%}
+  .row.cust{align-self:flex-end; align-items:flex-end}
+  .row.agent{align-self:flex-start; align-items:flex-start}
+  .bub{padding:9px 12px; border-radius:12px; white-space:pre-wrap; word-break:break-word}
+  .cust .bub{background:#2a3c6b; border:1px solid #3a4f85; border-bottom-right-radius:3px}
+  .agent .bub{background:var(--panel2); border:1px solid var(--line); border-bottom-left-radius:3px}
+  .meta{font-size:11px; color:var(--dim); display:flex; gap:6px; flex-wrap:wrap; align-items:center}
+  .badge{padding:1px 7px; border-radius:5px; font-size:10px; font-weight:700; letter-spacing:.04em; text-transform:uppercase}
+  .b-continue{background:#1d3350; color:#8fc0ff}
+  .b-clarify{background:#3a3320; color:var(--warn)}
+  .b-offer_cap{background:#3a3320; color:var(--warn)}
+  .b-submit{background:#123b2c; color:var(--ok)}
+  .b-transfer{background:#3a3320; color:var(--warn)}
+  .b-schedule_callback{background:#3a3320; color:var(--warn)}
+  .b-end_call{background:#3d1f24; color:var(--bad)}
+  code{background:#0e1730; padding:1px 5px; border-radius:4px; font-size:11px; color:#a8c7ff}
+  .composer{display:flex; gap:8px; padding:12px 14px; border-top:1px solid var(--line); background:var(--panel2)}
+  input[type=text]{
+    flex:1; background:#0e1730; border:1px solid var(--line); color:var(--text);
+    padding:10px 12px; border-radius:9px; font:inherit; outline:none;
+  }
+  input[type=text]:focus{border-color:var(--accent)}
+  button{
+    background:var(--accent); color:#fff; border:0; padding:10px 16px; border-radius:9px;
+    font:inherit; font-weight:600; cursor:pointer; white-space:nowrap;
+  }
+  button.ghost{background:var(--chip); border:1px solid var(--line); color:var(--text)}
+  button:disabled{opacity:.5; cursor:not-allowed}
+  .scen{padding:12px 14px; display:flex; flex-wrap:wrap; gap:7px}
+  .scen button{background:var(--chip); border:1px solid var(--line); color:var(--text); font-weight:500; font-size:12px; padding:6px 11px}
+  .scen button:hover{border-color:var(--accent)}
+  .side{display:flex; flex-direction:column; gap:16px}
+  table{width:100%; border-collapse:collapse}
+  td{padding:8px 14px; border-bottom:1px solid var(--line); font-size:13px; vertical-align:top}
+  tr:last-child td{border-bottom:0}
+  td.k{color:var(--dim); width:46%}
+  td.v{text-align:right; font-variant-numeric:tabular-nums}
+  .yes{color:var(--ok)} .no{color:var(--bad)} .unk{color:var(--dim)}
+  .status{padding:12px 14px; font-size:13px; display:flex; align-items:center; gap:9px}
+  .dot{width:9px; height:9px; border-radius:50%; background:var(--dim); flex:0 0 auto}
+  .dot.live{background:var(--ok)} .dot.ended{background:var(--bad)}
+  .term{padding:0 14px 12px; font-size:12px; color:var(--dim)}
+  .term b{color:var(--text)}
+  pre{margin:0; padding:12px 14px; font-size:11.5px; overflow-x:auto; color:#b9c8ea; max-height:230px}
+  .note{padding:10px 14px; font-size:11.5px; color:var(--dim); border-top:1px solid var(--line); background:#0e1730}
+  .foot{padding:0 22px 22px; color:var(--dim); font-size:11.5px}
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>Home Credit &mdash; LAP Pre-Qualification Voice Agent</h1>
+    <div class="sub">Deterministic rule-engine demo &middot; the LLM reports facts, this engine decides eligibility</div>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap">
+    <span class="pill">cap &#8377;75,00,000</span>
+    <span class="pill">tenure 3&ndash;15 yrs</span>
+    <span class="pill" id="callid">call &mdash;</span>
+  </div>
+</header>
+
+<main>
+  <section class="card">
+    <h2>Conversation</h2>
+    <div id="log"></div>
+    <div class="composer">
+      <input id="inp" type="text" autocomplete="off" placeholder="Type a customer reply… e.g. “It's my agricultural land”">
+      <button id="send">Send</button>
+      <button id="reset" class="ghost">Reset</button>
+    </div>
+    <div class="scen" id="scen"></div>
+    <div class="note">
+      No language model is called here. Your text is parsed by
+      <code>parsing.py</code>, applied to <code>CallState</code>, and routed by
+      <code>rules.evaluate()</code> &mdash; the same code path a Retell/Vapi webhook hits.
+    </div>
+  </section>
+
+  <aside class="side">
+    <div class="card">
+      <h2>Call status</h2>
+      <div class="status"><span class="dot" id="dot"></span><span id="statusText">not started</span></div>
+      <div class="term" id="termLine"></div>
+    </div>
+
+    <div class="card">
+      <h2>7-item eligibility checklist</h2>
+      <table id="checklist"></table>
+    </div>
+
+    <div class="card">
+      <h2>Lead payload (CRM)</h2>
+      <pre id="lead">{}</pre>
+    </div>
+  </aside>
+</main>
+
+<div class="foot">
+  Endpoints: <code>GET /</code> &middot; <code>POST /chat</code> &middot;
+  <code>POST /retell/tool/&lt;name&gt;</code> &middot; <code>POST /vapi/tool/&lt;name&gt;</code> &middot;
+  <code>GET /health</code>
+</div>
+
+<script>
+const CHECKLIST = [
+  ["property_type",      "1. Property type"],
+  ["ownership_status",   "2. Ownership"],
+  ["documents_original", "3. Original documents"],
+  ["loan_amount",        "4. Loan amount"],
+  ["occupation_and_income","5. Occupation + income mode"],
+  ["market_value",       "6. Market value"],
+  ["tenure_years",       "7. Tenure"],
+];
+
+const SCENARIOS = {
+  "Qualified (full flow)": [
+    "Yes, this is Rajesh",
+    "It's a residential property",
+    "Solely in my name",
+    "Yes, the originals are available",
+    "I need around fifty lakh",
+    "I'm salaried and my salary is credited to my bank account",
+    "It's worth about one crore",
+    "Ten years"
+  ],
+  "Agricultural land": ["Yes speaking", "Actually it's my agricultural land"],
+  "Cash income": ["Yes", "I have a commercial property, it's jointly owned, and I get my business income in cash"],
+  "No original docs": ["Yes", "It's residential", "I only have photocopies"],
+  "Asks ₹90 lakh → accepts cap": [
+    "Yes", "I need ninety lakh", "Yes, seventy-five lakh is fine",
+    "It's a residential flat", "Sole owner", "Originals available",
+    "Salaried, salary comes to my bank", "Worth two crore", "Twelve years"
+  ],
+  "Existing loan / EMI": ["Yes", "It's residential worth one crore, but I already have a loan on it and want to reduce my EMI"],
+  "Busy → callback": ["Yes but I'm in a meeting", "Tomorrow around 11"],
+  "Tenure too short": ["Yes", "I'd like to repay it over two years"],
+  "Out-of-order bundle": [
+    "I have a residential property worth around 1.1 crore. It's jointly owned with my wife and I need about 60 lakh.",
+    "Yes the originals are with me",
+    "Self-employed, everything comes into my current account",
+    "Twelve years"
+  ],
+  "Declines": ["Yes", "I'm not interested"],
+  "Don't call me again": ["Yes", "Stop calling me"],
+  "Wrong person": ["Wrong number, no such person here"]
+};
+
+const logEl = document.getElementById("log");
+const inp = document.getElementById("inp");
+const sendBtn = document.getElementById("send");
+let CALL = "demo_" + Math.random().toString(36).slice(2, 9);
+document.getElementById("callid").textContent = "call " + CALL;
+
+function inr(n){
+  if (n === null || n === undefined) return null;
+  const s = String(n);
+  if (s.length <= 3) return "₹" + s;
+  const head = s.slice(0, -3), tail = s.slice(-3);
+  const parts = [];
+  let h = head;
+  while (h.length > 2){ parts.unshift(h.slice(-2)); h = h.slice(0, -2); }
+  if (h) parts.unshift(h);
+  return "₹" + parts.join(",") + "," + tail;
+}
+
+function displayValue(key, v){
+  if (v === null || v === undefined || v === "") return null;
+  if (key === "loan_amount" || key === "market_value") return inr(v);
+  if (key === "tenure_years") return v + " yr";
+  if (typeof v === "boolean") return v ? "yes" : "no";
+  return String(v).replace(/_/g, " ");
+}
+
+function bubble(who, text, meta){
+  const row = document.createElement("div");
+  row.className = "row " + who;
+  const b = document.createElement("div");
+  b.className = "bub";
+  b.textContent = text;
+  row.appendChild(b);
+  if (meta){
+    const m = document.createElement("div");
+    m.className = "meta";
+    m.innerHTML = meta;
+    row.appendChild(m);
+  }
+  logEl.appendChild(row);
+  logEl.scrollTop = logEl.scrollHeight;
+  return row;
+}
+
+function renderChecklist(state){
+  const t = document.getElementById("checklist");
+  t.innerHTML = "";
+  const missing = state.missing_items || [];
+  for (const [key, label] of CHECKLIST){
+    let v;
+    if (key === "occupation_and_income"){
+      const occ = displayValue("occupation", state.occupation);
+      const inc = displayValue("income_mode", state.income_mode);
+      v = (occ && inc) ? occ + " · " + inc : (occ || inc || null);
+    } else {
+      v = displayValue(key, state[key]);
+    }
+    const tr = document.createElement("tr");
+    const answered = !missing.includes(key);
+    tr.innerHTML =
+      '<td class="k">' + label + '</td>' +
+      '<td class="v ' + (v ? (answered ? "yes" : "unk") : "unk") + '">' +
+      (v ? escapeHtml(v) : '<span class="unk">— not captured</span>') + '</td>';
+    t.appendChild(tr);
+  }
+}
+
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, c =>
+    ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function renderStatus(res, state){
+  const dot = document.getElementById("dot");
+  const txt = document.getElementById("statusText");
+  const term = document.getElementById("termLine");
+  if (res.end_call || (state.terminal && res.action !== "submit")){
+    dot.className = "dot ended";
+    txt.textContent = "call ended — " + (res.terminal || state.terminal);
+  } else if (res.action === "submit"){
+    dot.className = "dot live";
+    txt.textContent = "ready to hand off to senior loan expert";
+  } else {
+    dot.className = "dot live";
+    txt.textContent = "in progress — collecting eligibility facts";
+  }
+  const bits = [];
+  if (res.reason) bits.push("reason <b>" + escapeHtml(res.reason) + "</b>");
+  if (res.lead_status) bits.push("lead <b>" + escapeHtml(res.lead_status) + "</b>");
+  if (res.next_item && !res.end_call) bits.push("next <b>" + escapeHtml(res.next_item) + "</b>");
+  term.innerHTML = bits.join(" &middot; ");
+}
+
+function renderLead(payload){
+  const p = Object.assign({}, payload);
+  delete p.transcript; delete p.audit_trail;
+  if (p.facts){
+    p.facts = Object.fromEntries(Object.entries(p.facts).map(([k,v]) =>
+      [k, (k === "loan_amount" || k === "market_value") ? inr(v) : v]));
+  }
+  document.getElementById("lead").textContent = JSON.stringify(p, null, 2);
+}
+
+async function post(path, body){
+  const r = await fetch(path, {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify(body)
+  });
+  return r.json();
+}
+
+async function send(text){
+  if (!text) return;
+  sendBtn.disabled = true;
+  bubble("cust", text);
+  try{
+    const res = await post("/chat", {call_id: CALL, text: text});
+    if (res.error){ bubble("agent", "Error: " + res.error); return; }
+    const metaBits = [];
+    metaBits.push('<span class="badge b-' + res.action + '">' + res.action + '</span>');
+    if (res.intents && res.intents.length) metaBits.push("intents: " + res.intents.map(escapeHtml).join(", "));
+    if (res.recorded && res.recorded.length) metaBits.push("captured: " + res.recorded.map(escapeHtml).join(", "));
+    bubble("agent", res.say || "(engine returned no line for this turn)", metaBits.join(" "));
+    renderChecklist(res.state || {});
+    renderStatus(res, res.state || {});
+    renderLead(res.lead || {});
+    if (res.end_call || (res.state && res.state.terminal && res.action !== "submit")){
+      inp.disabled = true;
+      inp.placeholder = "Call ended — press Reset to start a new one";
+    }
+  } catch(e){
+    bubble("agent", "Network error: " + e.message);
+  } finally {
+    sendBtn.disabled = false;
+    if (!inp.disabled) inp.focus();
+  }
+}
+
+async function reset(){
+  try { await post("/reset", {call_id: CALL}); } catch(e){}
+  CALL = "demo_" + Math.random().toString(36).slice(2, 9);
+  document.getElementById("callid").textContent = "call " + CALL;
+  logEl.innerHTML = "";
+  document.getElementById("lead").textContent = "{}";
+  document.getElementById("termLine").innerHTML = "";
+  document.getElementById("dot").className = "dot";
+  document.getElementById("statusText").textContent = "not started";
+  renderChecklist({missing_items: CHECKLIST.map(c => c[0])});
+  inp.disabled = false;
+  inp.placeholder = "Type a customer reply… e.g. “It's my agricultural land”";
+  inp.value = "";
+  inp.focus();
+  bubble("agent", "Hello, may I speak with Rajesh Kumar?");
+}
+
+async function runScenario(turns){
+  await reset();
+  for (const t of turns){
+    await send(t);
+    if (inp.disabled) break;
+    await new Promise(r => setTimeout(r, 420));
+  }
+}
+
+sendBtn.onclick = () => { const v = inp.value.trim(); inp.value = ""; send(v); };
+inp.addEventListener("keydown", e => {
+  if (e.key === "Enter"){ const v = inp.value.trim(); inp.value = ""; send(v); }
+});
+document.getElementById("reset").onclick = reset;
+
+const scenEl = document.getElementById("scen");
+for (const [name, turns] of Object.entries(SCENARIOS)){
+  const b = document.createElement("button");
+  b.textContent = name;
+  b.onclick = () => runScenario(turns);
+  scenEl.appendChild(b);
+}
+
+reset();
+</script>
+</body>
+</html>

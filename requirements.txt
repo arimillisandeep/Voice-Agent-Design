@@ -1,0 +1,4 @@
+# Runtime: the webhook server uses only the Python standard library.
+# These are needed for tests and the prompt renderer.
+pyyaml>=6.0
+pytest>=7.0

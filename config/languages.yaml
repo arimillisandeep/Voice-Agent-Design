@@ -1,0 +1,108 @@
+# =============================================================================
+# LANGUAGE CONFIGURATION
+# =============================================================================
+# Used by tools/render_prompts.py to build one rendered system prompt per locale.
+# `gender_marking` drives how strongly the overlay must constrain agent_gender.
+# =============================================================================
+
+default_language: hi-IN
+
+languages:
+  - code: en-IN
+    name: English
+    display: English
+    overlay: null
+    script: Latin
+    gender_marking: none
+    lakh_crore_terms: {lakh: "lakh", crore: "crore"}
+    currency_word: "rupees"
+    max_75_lakh_words: "seventy-five lakh rupees"
+
+  - code: hi-IN
+    name: Hindi
+    display: हिन्दी
+    overlay: hi.md
+    script: Devanagari
+    gender_marking: strong
+    lakh_crore_terms: {lakh: "लाख", crore: "करोड़"}
+    currency_word: "रुपये"
+    max_75_lakh_words: "पचहत्तर लाख रुपये"
+
+  - code: mr-IN
+    name: Marathi
+    display: मराठी
+    overlay: mr.md
+    script: Devanagari
+    gender_marking: strong
+    lakh_crore_terms: {lakh: "लाख", crore: "कोटी"}
+    currency_word: "रुपये"
+    max_75_lakh_words: "पंचाहत्तर लाख रुपये"
+
+  - code: gu-IN
+    name: Gujarati
+    display: ગુજરાતી
+    overlay: gu.md
+    script: Gujarati
+    gender_marking: strong
+    lakh_crore_terms: {lakh: "લાખ", crore: "કરોડ"}
+    currency_word: "રૂપિયા"
+    max_75_lakh_words: "પંચોત્તર લાખ રૂપિયા"
+
+  - code: te-IN
+    name: Telugu
+    display: తెలుగు
+    overlay: te.md
+    script: Telugu
+    gender_marking: moderate
+    lakh_crore_terms: {lakh: "లక్షలు", crore: "కోటి"}
+    currency_word: "రూపాయలు"
+    max_75_lakh_words: "డెబ్భై ఐదు లక్షల రూపాయలు"
+
+  - code: ta-IN
+    name: Tamil
+    display: தமிழ்
+    overlay: ta.md
+    script: Tamil
+    gender_marking: weak
+    lakh_crore_terms: {lakh: "லட்சம்", crore: "கோடி"}
+    currency_word: "ரூபாய்"
+    max_75_lakh_words: "எழுபத்தைந்து லட்சம் ரூபாய்"
+
+  - code: kn-IN
+    name: Kannada
+    display: ಕನ್ನಡ
+    overlay: kn.md
+    script: Kannada
+    gender_marking: weak
+    lakh_crore_terms: {lakh: "ಲಕ್ಷ", crore: "ಕೋಟಿ"}
+    currency_word: "ರೂಪಾಯಿ"
+    max_75_lakh_words: "ಎಪ್ಪತ್ತೈದು ಲಕ್ಷ ರೂಪಾಯಿ"
+
+  - code: bn-IN
+    name: Bengali
+    display: বাংলা
+    overlay: bn.md
+    script: Bengali
+    gender_marking: none
+    lakh_crore_terms: {lakh: "লক্ষ", crore: "কোটি"}
+    currency_word: "টাকা"
+    max_75_lakh_words: "পঁচাত্তর লক্ষ টাকা"
+
+# Locale -> display name mapping for the {{language_to_speak}} variable
+accept_aliases:
+  english: en-IN
+  hindi: hi-IN
+  "हिन्दी": hi-IN
+  marathi: mr-IN
+  "मराठी": mr-IN
+  gujarati: gu-IN
+  "ગુજરાતી": gu-IN
+  telugu: te-IN
+  "తెలుగు": te-IN
+  tamil: ta-IN
+  "தமிழ்": ta-IN
+  kannada: kn-IN
+  "ಕನ್ನಡ": kn-IN
+  bengali: bn-IN
+  bangla: bn-IN
+  "বাংলা": bn-IN

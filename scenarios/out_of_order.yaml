@@ -1,0 +1,22 @@
+name: "Scenario 12 — out-of-order bundled answer"
+description: >
+  Customer volunteers four facts in one breath (master prompt 52). The agent must
+  capture all four and jump straight to the first MISSING item (documents), never
+  re-asking what was already given.
+customer_name: "Anita Sharma"
+language: "en-IN"
+turns:
+  - customer: "Yes speaking"
+    facts: {customer_verified: true}
+  - customer: >-
+      I have a residential property worth around 1.1 crore. It's jointly owned with
+      my wife. I want around 60 lakh.
+  - customer: "Yes the original documents are with me"
+    facts: {documents_original: "yes"}
+  - customer: "I'm self-employed and everything comes into my current account"
+    facts: {occupation: self_employed, income_mode: bank}
+  - customer: "Twelve years"
+    facts: {tenure_years: 12}
+expect:
+  lead_status: "qualified"
+  handoff_completed: true

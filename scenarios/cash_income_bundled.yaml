@@ -1,0 +1,15 @@
+name: "Scenario 3 — cash income bundled with eligible answers"
+description: >
+  Master prompt 53: commercial + joint are fine, but cash income disqualifies. The
+  disqualifying fact must win even though it arrived alongside passing answers.
+customer_name: "Mohammed Irfan"
+language: "en-IN"
+turns:
+  - customer: "Yes, go ahead"
+    facts: {customer_verified: true}
+  - customer: >-
+      I have a commercial property, it's jointly owned, and I get my business
+      income in cash.
+expect:
+  lead_status: "disqualified"
+  reason: "cash_income"

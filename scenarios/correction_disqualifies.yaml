@@ -1,0 +1,18 @@
+name: "Scenario 20 — late correction to agricultural land"
+description: >
+  Master prompt 61: the latest clear answer replaces the earlier one, and a corrected
+  disqualifying answer ends the call even after other criteria passed.
+customer_name: "Neha Agarwal"
+language: "en-IN"
+turns:
+  - customer: "Yes"
+    facts: {customer_verified: true}
+  - customer: "It's a residential property"
+    facts: {property_type: residential}
+  - customer: "Original documents are available"
+    facts: {documents_original: "yes"}
+  - customer: "Actually sorry, I meant it's agricultural land"
+    facts: {property_type: agricultural}
+expect:
+  lead_status: "disqualified"
+  reason: "agricultural_property"

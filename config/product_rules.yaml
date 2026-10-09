@@ -1,0 +1,136 @@
+# =============================================================================
+# HOME CREDIT LAP — PRODUCT RULES (single source of truth)
+# =============================================================================
+# Change a number here, then regenerate the prompt appendix with:
+#   python tools/render_prompts.py --check
+# `src/homecredit_lap/rules.py` reads its defaults from this file's mirror;
+# keep both in sync (tests/test_config_sync.py enforces it).
+# =============================================================================
+
+product:
+  name: "Loan Against Property (LAP)"
+  company_variable: "{{company_name}}"
+  channel: "outbound_voice"
+  stage: "preliminary_qualification"
+  authority: "first_point_of_contact"     # never an approver
+
+offer:
+  max_loan_amount_inr: 7500000            # ₹75,00,000
+  max_loan_amount_display: "₹75 lakh"
+  min_loan_amount_inr: null                # not specified by business -> do not invent
+  currency: "INR"
+  number_system: "indian"                  # lakh / crore
+
+eligibility:
+  property_type:
+    eligible: [residential, commercial, industrial]
+    disqualifying:
+      agricultural: "agricultural_property"
+      none: "no_property_owned"            # customer owns no property
+      other: "ineligible_property_type"
+    ambiguous_value: "unclear"
+
+  ownership_status:
+    eligible: [sole, joint]
+    disqualifying: []                      # joint ownership must NEVER disqualify
+    ambiguous_value: "unclear"
+
+  documents_original:
+    eligible: ["yes"]
+    disqualifying:
+      "no": "original_documents_unavailable"
+    ambiguous_value: "unclear"
+    ambiguous_triggers: [photocopy, xerox, scan, scanned, lost, "not sure", somewhere]
+
+  loan_amount:
+    rule: "<= max_loan_amount_inr"
+    above_cap_behavior: "offer_cap_then_confirm"   # never auto-reject
+    above_cap_decline_reason: "loan_amount_above_cap_refused"
+
+  occupation:
+    eligible: [salaried, self_employed]
+    disqualifying:
+      none: "no_income_source"             # unemployed / student / retired w/o income
+    clarify: [freelancer, "gig work"]      # confirm classification before recording
+
+  income_mode:
+    eligible: [bank]
+    disqualifying:
+      cash: "cash_income"
+    ambiguous_value: "mixed"               # -> one clarifying question
+
+  market_value:
+    threshold: null                        # NO minimum property value exists
+    behavior: "record_only"
+    note: >
+      Do not invent a minimum property value or an LTV cap. Any stated estimate is
+      recorded and passed to the senior loan expert unchanged.
+
+  tenure_years:
+    min: 3
+    max: 15
+    inclusive: true
+    unit_conversion: {months: "divide_by_12"}
+    disqualifying:
+      below_min: "tenure_below_minimum"
+      above_max: "tenure_above_maximum"
+
+routing:
+  transfer_triggers:
+    - existing_property_loan
+    - emi_reduction_request
+    - balance_transfer
+    - refinance
+  transfer_specialist: "loan_transfer"
+  qualified_handoff: "senior_loan_expert"
+
+checklist_order:
+  - property_type
+  - ownership_status
+  - documents_original
+  - loan_amount
+  - occupation_and_income          # item 5 = two facts, one question turn allowed
+  - market_value
+  - tenure_years
+
+routing_priority:                        # master prompt §5 — first match wins
+  1: customer_ends_call_or_dnc
+  2: wrong_person
+  3: transfer_existing_loan_or_emi
+  4: busy_callback
+  5: declined
+  6: disqualified
+  7: complete_submit
+  8: answer_question_then_continue
+  9: ask_first_missing_item
+
+terminals: [qualified, disqualified, transfer, callback, declined, do_not_call, wrong_person]
+
+compliance:
+  never_say:
+    - "your loan is approved"
+    - "loan sanctioned"
+    - "guaranteed"
+    - "pre-approved"
+    - "confirmed amount"
+  always_use: ["may be eligible", "preliminary check", "initial qualification", "next stage"]
+  never_invent:
+    - interest_rate
+    - emi_amount
+    - processing_fee
+    - prepayment_charges
+    - credit_score_requirement
+    - minimum_income
+    - minimum_salary
+    - age_limit
+    - employment_duration
+    - loan_to_value_ratio
+    - property_location_restriction
+    - minimum_bank_balance
+    - additional_collateral
+    - disbursement_timeline
+  never_collect_on_call: [otp, password, pin, card_number, cvv, aadhaar_number, full_account_number]
+  disclosure:
+    ai_disclosure_on_request: true
+    verify_identity_before_offer_details: true
+    no_disclosure_to_third_party: true

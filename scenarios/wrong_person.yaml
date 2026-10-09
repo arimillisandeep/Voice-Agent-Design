@@ -1,0 +1,10 @@
+name: "Wrong person answered — disclose nothing"
+description: >
+  A third party must never learn the offer amount, the product or the customer's
+  eligibility. The closing line may name the customer and nothing else.
+customer_name: "Rajesh Kumar"
+language: "en-IN"
+turns:
+  - customer: "Wrong number, no such person here"
+expect:
+  lead_status: "wrong_person"

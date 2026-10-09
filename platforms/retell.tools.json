@@ -1,0 +1,101 @@
+[
+  {
+    "type": "end_call",
+    "name": "end_call",
+    "description": "End the call. Use ONLY after a closing line has been spoken (qualified, disqualified, transfer, callback booked, declined, wrong person, or the customer asked you to stop). Never end mid-qualification.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "reason": {
+          "type": "string",
+          "enum": ["qualified", "disqualified", "transfer", "callback", "declined", "do_not_call", "wrong_person", "customer_ended", "abandoned"],
+          "description": "Terminal state for the CRM record."
+        }
+      },
+      "required": ["reason"]
+    }
+  },
+  {
+    "type": "transfer_call",
+    "name": "transfer_lead",
+    "description": "Route the lead to a specialist. Use IMMEDIATELY when the customer mentions an existing property loan, a balance transfer, a refinance, or reducing/lowering their EMI. Do not ask any further eligibility questions after this.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "specialist": {
+          "type": "string",
+          "enum": ["loan_transfer", "senior_loan_expert"],
+          "description": "loan_transfer = existing loan / balance transfer / EMI reduction. senior_loan_expert = qualified fresh-loan handoff."
+        },
+        "note": {"type": "string", "description": "One-line reason for the specialist."}
+      },
+      "required": ["specialist"]
+    }
+  },
+  {
+    "type": "custom",
+    "name": "record_eligibility_fact",
+    "description": "Record ONE eligibility fact the customer just gave you, as soon as they give it (including facts volunteered out of order or bundled with other answers). The response tells you what to say next and whether the call should end. Call this once per fact; multiple calls in the same turn are allowed.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "key": {
+          "type": "string",
+          "enum": [
+            "customer_verified", "wrong_person", "property_type", "ownership_status",
+            "documents_original", "loan_amount", "occupation", "income_mode",
+            "market_value", "tenure_years", "cap_offer_accepted",
+            "existing_property_loan", "emi_reduction_request", "busy", "callback_time",
+            "declined", "do_not_call", "requested_human", "ended_by_customer"
+          ]
+        },
+        "value": {
+          "description": "Normalised value. property_type: residential|commercial|industrial|agricultural|other|none|unclear. ownership_status: sole|joint|unclear. documents_original: yes|no|unclear. occupation: salaried|self_employed|none. income_mode: bank|cash|mixed. loan_amount and market_value: integer rupees (50 lakh = 5000000, 1 crore = 10000000). tenure_years: number of years (36 months = 3). Booleans: true|false. Use 'unclear' when the customer was ambiguous — never guess."
+        },
+        "verbatim": {"type": "string", "description": "The customer's own words, for the audit log."}
+      },
+      "required": ["key", "value"]
+    }
+  },
+  {
+    "type": "custom",
+    "name": "submit_eligibility_facts",
+    "description": "Submit the completed preliminary qualification. Call ONLY after all 7 checklist items have answers (property_type, ownership_status, documents_original, loan_amount, occupation, income_mode, market_value, tenure_years). Returns the authoritative decision and the exact line to speak. If an item is still missing the tool will refuse and tell you which one to ask.",
+    "parameters": {"type": "object", "properties": {}, "required": []}
+  },
+  {
+    "type": "custom",
+    "name": "schedule_callback",
+    "description": "Book a callback for a busy customer. Call this after capturing their preferred time, then say goodbye and end the call. Never invent a time the customer did not give.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "preferred_time": {"type": "string", "description": "The customer's own words, e.g. 'tomorrow around 11', or an ISO-8601 slot if your backend resolved it."},
+        "resolved_iso": {"type": "string", "description": "Optional ISO-8601 timestamp if resolved server-side."}
+      },
+      "required": ["preferred_time"]
+    }
+  },
+  {
+    "type": "custom",
+    "name": "mark_do_not_call",
+    "description": "Add the number to the do-not-call list. Use when the customer says 'don't call me again', 'stop calling', or asks to be removed. Apologise once, confirm, and end the call.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "reason": {"type": "string", "enum": ["customer_request", "abusive", "deceased", "not_our_customer", "other"]}
+      },
+      "required": ["reason"]
+    }
+  },
+  {
+    "type": "custom",
+    "name": "log_note",
+    "description": "Write a free-text note to the call record (unrelated questions asked, corrections made, customer sentiment). Does not change the conversation flow.",
+    "parameters": {
+      "type": "object",
+      "properties": {"note": {"type": "string"}, "tag": {"type": "string"}},
+      "required": ["note"]
+    }
+  }
+]

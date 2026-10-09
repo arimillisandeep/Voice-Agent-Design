@@ -1,0 +1,13 @@
+name: "Scenario 18 — declines, then asks not to be called"
+description: >
+  A decline must end the call with no rebuttal and no follow-up question. A
+  do-not-call request outranks everything, including an otherwise qualified lead.
+customer_name: "Ramesh Iyer"
+language: "en-IN"
+turns:
+  - customer: "Yes"
+    facts: {customer_verified: true}
+  - customer: "I'm not interested"
+  - customer: "And please don't call me again"
+expect:
+  lead_status: "declined"

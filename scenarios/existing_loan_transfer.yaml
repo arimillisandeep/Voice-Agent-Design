@@ -1,0 +1,16 @@
+name: "Scenario 9/10 — existing loan + EMI reduction (transfer)"
+description: >
+  Master prompt 55: transfer routing wins over partially collected eligibility facts.
+  No further checklist questions may be asked.
+customer_name: "Deepa Nair"
+language: "en-IN"
+turns:
+  - customer: "Yes, Deepa here"
+    facts: {customer_verified: true}
+  - customer: "It's a residential property worth about one crore"
+    facts: {property_type: residential, market_value: 10000000}
+  - customer: "Actually I already have a loan on it and I want to reduce my EMI"
+expect:
+  lead_status: "transfer"
+  reason: "existing_loan_or_emi_reduction"
+  handoff_completed: false

@@ -1,0 +1,49 @@
+# =============================================================================
+# CALL STATE SCHEMA — persist this per call (Retell: `state` object / Vapi: `assistantOverrides.variableValues`)
+# =============================================================================
+# The LLM sees only the `say`/`next_item` fields returned by tools.
+# Everything else is backend-owned. Initialise at call start.
+# =============================================================================
+
+customer_verified:        {type: boolean,  default: null}
+wrong_person:             {type: boolean,  default: false}
+
+# ---- the 7 eligibility facts ------------------------------------------------
+property_type:            {type: string,   default: null, enum: [residential, commercial, industrial, agricultural, other, none, unclear]}
+ownership_status:         {type: string,   default: null, enum: [sole, joint, unclear]}
+documents_original:       {type: string,   default: null, enum: ["yes", "no", unclear]}
+loan_amount:              {type: integer,  default: null, unit: INR, max: 7500000}
+occupation:               {type: string,   default: null, enum: [salaried, self_employed, none]}
+income_mode:              {type: string,   default: null, enum: [bank, cash, mixed]}
+market_value:             {type: integer,  default: null, unit: INR}
+tenure_years:             {type: number,   default: null, min: 0, max: 40}
+
+# ---- cap negotiation -------------------------------------------------------
+cap_offer_pending:        {type: boolean,  default: false}
+cap_offer_accepted:       {type: boolean,  default: null}
+
+# ---- routing ---------------------------------------------------------------
+existing_property_loan:   {type: boolean,  default: null}
+emi_reduction_request:    {type: boolean,  default: null}
+
+# ---- non-qualification terminals ------------------------------------------
+busy:                     {type: boolean,  default: false}
+callback_time:            {type: string,   default: null, note: "customer's own words, or ISO-8601 if resolved"}
+declined:                 {type: boolean,  default: false}
+do_not_call:              {type: boolean,  default: false}
+requested_human:          {type: boolean,  default: false}
+ended_by_customer:        {type: boolean,  default: false}
+
+# ---- outcome ---------------------------------------------------------------
+terminal:                 {type: string,   default: "", enum: ["", qualified, disqualified, transfer, callback, declined, do_not_call, wrong_person, abandoned]}
+terminal_reason:          {type: string,   default: null}
+handoff_completed:        {type: boolean,  default: false}
+
+# ---- audit -----------------------------------------------------------------
+facts_log:                {type: array,    default: [], note: "every record/correction with old+new value"}
+clarifications_pending:   {type: array,    default: [], note: "checklist items abandoned after MAX_REASKS unanswered attempts"}
+
+# =============================================================================
+# Retell note: declare the mutable subset in the agent's `state` schema so tools
+# can write it; keep facts_log server-side if payload size matters.
+# =============================================================================

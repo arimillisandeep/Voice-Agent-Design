@@ -1,0 +1,13 @@
+# Sample call-time variables, used by `tools/render_prompts.py --demo` and by the CLI
+# simulator. Replace with your CRM/telephony payload at call start.
+
+company_name: "Home Credit"
+customer_name: "Rajesh Kumar"
+agent_name: "Priya"
+agent_gender: "feminine"
+language_to_speak: "Hindi"
+language_code: "hi-IN"
+current_date: "2026-10-09"
+current_day: "Thursday"
+current_time: "11:20"
+additional_context_from_rag: ""

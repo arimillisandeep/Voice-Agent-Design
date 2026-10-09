@@ -1,0 +1,18 @@
+name: "Scenario 16 — ambiguous documents, then clarified"
+description: >
+  "I think the documents are somewhere" must NOT be recorded as available. The agent
+  asks one clarifying question, and only the explicit answer is stored.
+customer_name: "Sanjay Gupta"
+language: "en-IN"
+turns:
+  - customer: "Yes, Sanjay speaking"
+    facts: {customer_verified: true}
+  - customer: "It's a residential property"
+    facts: {property_type: residential}
+  - customer: "Solely mine"
+    facts: {ownership_status: sole}
+  - customer: "I think the documents are somewhere"
+  - customer: "Yes, actually the originals are in my locker"
+    facts: {documents_original: "yes"}
+expect:
+  lead_status: "in_progress"

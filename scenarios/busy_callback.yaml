@@ -1,0 +1,12 @@
+name: "Scenario 11 — busy customer (callback)"
+description: >
+  Busy must stop qualification at once, capture the customer's own words for the
+  callback time, and never invent a time they did not give.
+customer_name: "Arjun Reddy"
+language: "en-IN"
+turns:
+  - customer: "Yes, but I'm actually in a meeting"
+  - customer: "Tomorrow around 11"
+expect:
+  lead_status: "callback"
+  reason: "customer_busy"

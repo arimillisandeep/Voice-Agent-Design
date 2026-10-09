@@ -1,0 +1,135 @@
+{
+  "_comment": "Vapi assistant `tools` array. Set type=function with a server URL so the deterministic engine in src/homecredit_lap owns every threshold decision. Client-only tools (endCall/transferCall) are declared as type=message + type=transferCall.",
+  "_serverUrl": "https://YOUR-BACKEND/vapi/webhook",
+  "_variableValues": {
+    "company_name": "Home Credit",
+    "customer_name": "Rajesh Kumar",
+    "agent_name": "Priya",
+    "agent_gender": "feminine",
+    "language_to_speak": "Hindi",
+    "language_code": "hi-IN",
+    "current_date": "2026-10-09",
+    "current_day": "Thursday",
+    "current_time": "11:20",
+    "additional_context_from_rag": ""
+  },
+  "tools": [
+    {
+      "type": "endCall",
+      "name": "end_call",
+      "function": {
+        "description": "End the call. Use ONLY after a closing line has been spoken (qualified, disqualified, transfer, callback booked, declined, wrong person, or the customer asked you to stop). Never end mid-qualification.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "reason": {
+              "type": "string",
+              "enum": ["qualified", "disqualified", "transfer", "callback", "declined", "do_not_call", "wrong_person", "customer_ended", "abandoned"]
+            }
+          },
+          "required": ["reason"]
+        }
+      }
+    },
+    {
+      "type": "transferCall",
+      "name": "transfer_lead",
+      "function": {
+        "description": "Route the lead to a specialist. Use IMMEDIATELY when the customer mentions an existing property loan, balance transfer, refinance, or reducing/lowering their EMI. Do not ask further eligibility questions after this.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "specialist": {"type": "string", "enum": ["loan_transfer", "senior_loan_expert"]},
+            "note": {"type": "string"}
+          },
+          "required": ["specialist"]
+        }
+      }
+    },
+    {
+      "type": "function",
+      "async": false,
+      "server": {"url": "https://YOUR-BACKEND/vapi/tool/record_eligibility_fact", "timeoutSeconds": 20},
+      "function": {
+        "name": "record_eligibility_fact",
+        "description": "Record ONE eligibility fact the customer just gave, as soon as they give it (including facts volunteered out of order or bundled together). The response tells you what to say next and whether the call ends. Multiple calls per turn are allowed.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "key": {
+              "type": "string",
+              "enum": ["customer_verified", "wrong_person", "property_type", "ownership_status", "documents_original", "loan_amount", "occupation", "income_mode", "market_value", "tenure_years", "cap_offer_accepted", "existing_property_loan", "emi_reduction_request", "busy", "callback_time", "declined", "do_not_call", "requested_human", "ended_by_customer"]
+            },
+            "value": {"description": "Normalised value; see the system prompt appendix. Integer rupees for amounts, years for tenure, 'unclear' when ambiguous."},
+            "verbatim": {"type": "string"}
+          },
+          "required": ["key", "value"]
+        }
+      }
+    },
+    {
+      "type": "function",
+      "async": false,
+      "server": {"url": "https://YOUR-BACKEND/vapi/tool/submit_eligibility_facts", "timeoutSeconds": 20},
+      "function": {
+        "name": "submit_eligibility_facts",
+        "description": "Submit the completed preliminary qualification. Call ONLY after all 7 checklist items have answers. Returns the authoritative decision and the exact line to speak.",
+        "parameters": {"type": "object", "properties": {}, "required": []}
+      }
+    },
+    {
+      "type": "function",
+      "async": false,
+      "server": {"url": "https://YOUR-BACKEND/vapi/tool/schedule_callback", "timeoutSeconds": 20},
+      "function": {
+        "name": "schedule_callback",
+        "description": "Book a callback for a busy customer after capturing their preferred time, then say goodbye and end the call.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "preferred_time": {"type": "string"},
+            "resolved_iso": {"type": "string"}
+          },
+          "required": ["preferred_time"]
+        }
+      }
+    },
+    {
+      "type": "function",
+      "async": false,
+      "server": {"url": "https://YOUR-BACKEND/vapi/tool/log_note", "timeoutSeconds": 20},
+      "function": {
+        "name": "log_note",
+        "description": "Write a free-text note to the call record (unrelated questions asked, corrections made, customer sentiment). Does not change the conversation flow.",
+        "parameters": {
+          "type": "object",
+          "properties": {"note": {"type": "string"}, "tag": {"type": "string"}},
+          "required": ["note"]
+        }
+      }
+    },
+    {
+      "type": "function",
+      "async": false,
+      "server": {"url": "https://YOUR-BACKEND/vapi/tool/mark_do_not_call", "timeoutSeconds": 20},
+      "function": {
+        "name": "mark_do_not_call",
+        "description": "Add the number to the do-not-call list when the customer asks you to stop calling.",
+        "parameters": {
+          "type": "object",
+          "properties": {"reason": {"type": "string", "enum": ["customer_request", "abusive", "deceased", "not_our_customer", "other"]}},
+          "required": ["reason"]
+        }
+      }
+    }
+  ],
+  "_firstMessage": "नमस्ते, क्या मैं {{customer_name}} से बात कर सकती हूँ?",
+  "_firstMessageMode": "assistant-speaks-first",
+  "_suggestedModelSettings": {
+    "model": "gpt-4o-mini | claude-3-5-haiku | llama-3.1-70b",
+    "temperature": 0.3,
+    "maxTokens": 220,
+    "emotionRecognitionEnabled": false,
+    "note": "Keep maxTokens low (~200) to force short spoken turns. temperature 0.2-0.4 for rule fidelity."
+  }
+}

@@ -1,0 +1,610 @@
+# =============================================================================
+# TRACEABILITY MATRIX — original 64-section master prompt -> v2.0 implementation
+# =============================================================================
+# Every instruction in the supplied prompt is mapped to where it now lives.
+# `tools/verify_coverage.py` mechanically checks that each reference resolves:
+# prompt headings, literal prompt text, importable code symbols, test functions,
+# scenario files and config key paths. A stale claim fails the build.
+#
+# status values:
+#   prompt       - instruction lives in the system prompt (model behaviour)
+#   code         - instruction is enforced deterministically in Python
+#   both         - stated in the prompt AND enforced in code
+#   tests        - original worked example, now a replayable scenario + assertions
+#   strengthened - v2 adds handling the original lacked
+#   gap          - NOT implemented; needs a business decision (see `note`)
+# =============================================================================
+
+sections:
+
+  - id: 1
+    title: "SYSTEM ROLE (11 responsibilities)"
+    status: both
+    prompt: ["1. IDENTITY", "3. THE THREE GOLDEN RULES"]
+    code: ["homecredit_lap.rules.evaluate"]
+    tests: ["test_01_normal_eligible_customer_qualifies"]
+
+  - id: 2
+    title: "AVAILABLE VARIABLES"
+    status: prompt
+    prompt: ["2. INJECTED CONTEXT"]
+    config: ["sample_context.yaml:customer_name", "sample_context.yaml:agent_gender",
+             "sample_context.yaml:language_to_speak"]
+
+  - id: 3
+    title: "LANGUAGE RULE"
+    status: strengthened
+    prompt: ["11. LANGUAGE"]
+    config: ["languages.yaml:languages", "languages.yaml:default_language"]
+    tests: ["test_every_declared_language_has_an_overlay_or_is_english",
+            "test_overlays_define_the_required_sections",
+            "test_language_aliases_resolve_to_declared_codes"]
+    note: "Original covered English + Hindi only. v2 ships 8 locales with per-language overlays."
+
+  - id: 4
+    title: "AGENT GENDER RULE"
+    status: strengthened
+    prompt: ["12. AGENT GENDER"]
+    config: ["languages.yaml:languages"]
+    tests: ["test_gender_marking_values_are_valid", "test_overlays_define_the_required_sections"]
+    note: >
+      Original said 'use forms appropriate to the configured gender' without saying how.
+      Each overlay now carries a conjugation table for strong-gender languages and an
+      explicit gender-neutral instruction for weak/none languages.
+
+  - id: 5
+    title: "CURRENT DATE AND TIME"
+    status: prompt
+    prompt: ["2. INJECTED CONTEXT"]
+    config: ["sample_context.yaml:current_date", "sample_context.yaml:current_time"]
+
+  - id: 6
+    title: "CONVERSATION STYLE"
+    status: prompt
+    prompt: ["13. VOICE AND STYLE"]
+
+  - id: 7
+    title: "CUSTOMER-FIRST CONVERSATION RULE"
+    status: both
+    prompt: ["4. PER-TURN PROCEDURE (follow silently, every turn)", "6. PHASES AND THE 7-ITEM CHECKLIST"]
+    code: ["homecredit_lap.runtime.process_turn"]
+
+  - id: 8
+    title: "INTERNAL STATE"
+    status: both
+    prompt: ["3. THE THREE GOLDEN RULES"]
+    code: ["homecredit_lap.state.CallState"]
+    config: ["state_schema.yaml:terminal", "state_schema.yaml:facts_log"]
+    tests: ["test_state_schema_covers_every_dataclass_field",
+            "test_state_schema_records_are_well_formed",
+            "test_prompt_never_leaks_internal_state_names_as_speech"]
+
+  - id: 9
+    title: "REQUIRED 7-ITEM CHECKLIST"
+    status: both
+    prompt: ["6. PHASES AND THE 7-ITEM CHECKLIST"]
+    code: ["homecredit_lap.state.CHECKLIST_ITEMS", "homecredit_lap.state.CHECKLIST_ORDER"]
+    config: ["product_rules.yaml:checklist_order"]
+    tests: ["test_checklist_has_seven_items", "test_checklist_order_matches_yaml"]
+    note: "Item 5 (occupation + income mode) is two facts; v2 states explicitly when it counts as answered."
+
+  - id: 10
+    title: "CRITICAL INFORMATION EXTRACTION RULE"
+    status: both
+    prompt: ["4. PER-TURN PROCEDURE (follow silently, every turn)"]
+    code: ["homecredit_lap.runtime.process_turn", "homecredit_lap.parsing.extract_facts"]
+
+  - id: 11
+    title: "OUT-OF-ORDER INFORMATION"
+    status: both
+    prompt: ["6. PHASES AND THE 7-ITEM CHECKLIST"]
+    code: ["homecredit_lap.parsing.extract_facts", "homecredit_lap.state.CallState.missing_items"]
+    tests: ["test_12_out_of_order_bundle", "test_12b_never_reasks_a_captured_item",
+            "test_extract_out_of_order_bundle"]
+    scenarios: ["out_of_order.yaml"]
+
+  - id: 12
+    title: "MULTIPLE ANSWERS IN ONE RESPONSE"
+    status: both
+    prompt: ["6. PHASES AND THE 7-ITEM CHECKLIST"]
+    code: ["homecredit_lap.parsing.extract_facts"]
+    tests: ["test_13_multiple_answers_captured_at_once", "test_extract_multiple_answers"]
+
+  - id: 13
+    title: "CUSTOMER CORRECTIONS"
+    status: both
+    prompt: ["6. PHASES AND THE 7-ITEM CHECKLIST"]
+    code: ["homecredit_lap.state.CallState.record"]
+    tests: ["test_15_correction_replaces_previous_answer", "test_20b_correction_is_audited"]
+
+  - id: 14
+    title: "AMBIGUOUS INFORMATION"
+    status: both
+    prompt: ["6. PHASES AND THE 7-ITEM CHECKLIST"]
+    code: ["homecredit_lap.rules._needs_clarification", "homecredit_lap.runtime.CLARIFY_BY_ITEM"]
+    tests: ["test_04b_ambiguous_documents_are_clarified_not_assumed",
+            "test_16_ambiguous_answers_trigger_clarification",
+            "test_parse_ownership_never_guesses",
+            "test_parse_tenure_ambiguous_returns_none"]
+    scenarios: ["ambiguous_then_clarified.yaml"]
+
+  - id: 15
+    title: "CONTRADICTORY INFORMATION"
+    status: both
+    prompt: ["6. PHASES AND THE 7-ITEM CHECKLIST"]
+    code: ["homecredit_lap.state.CallState.record"]
+    tests: ["test_15_correction_replaces_previous_answer", "test_16_ambiguous_answers_trigger_clarification"]
+
+  - id: 16
+    title: "STAGE A: GREETING"
+    status: prompt
+    prompt: ["6. PHASES AND THE 7-ITEM CHECKLIST", "7. VERIFICATION"]
+
+  - id: 17
+    title: "WRONG CUSTOMER"
+    status: both
+    prompt: ["7. VERIFICATION", "15. CLOSING LINES"]
+    code: ["homecredit_lap.rules.evaluate", "homecredit_lap.parsing.detect_intents"]
+    tests: ["test_21_wrong_person_discloses_nothing"]
+    scenarios: ["wrong_person.yaml"]
+
+  - id: 18
+    title: "BUSY CUSTOMER FLOW"
+    status: both
+    prompt: ["8. NON-QUALIFICATION TERMINALS"]
+    code: ["homecredit_lap.tools.LapAgentTools.schedule_callback",
+           "homecredit_lap.parsing.parse_callback_time"]
+    tests: ["test_11_busy_stops_qualification", "test_11b_busy_then_time_booked",
+            "test_11c_busy_never_invents_a_time",
+            "test_11d_busy_with_full_eligibility_still_ends_as_callback"]
+    scenarios: ["busy_callback.yaml"]
+
+  - id: 19
+    title: "OFFER PRESENTATION"
+    status: prompt
+    prompt: ["6. PHASES AND THE 7-ITEM CHECKLIST", "14. COMPLIANCE (non-negotiable)"]
+    tests: ["test_prompt_requires_preliminary_language"]
+
+  - id: 20
+    title: "INTEREST AND PRODUCT QUESTIONS"
+    status: both
+    prompt: ["10. ANSWERING QUESTIONS", "14. COMPLIANCE (non-negotiable)"]
+    code: ["homecredit_lap.parsing.detect_intents"]
+    tests: ["test_17_interest_rate_is_deflected_not_invented",
+            "test_17b_rate_question_intent_detected"]
+
+  - id: 21
+    title: "EXISTING LOAN / EMI REDUCTION DETECTION"
+    status: both
+    prompt: ["5. ROUTING PRIORITY", "8. NON-QUALIFICATION TERMINALS"]
+    code: ["homecredit_lap.parsing.INTENT_PATTERNS", "homecredit_lap.rules.evaluate"]
+    tests: ["test_09_10_existing_loan_or_emi_routes_to_transfer",
+            "test_existing_loan_and_emi_detected_together"]
+
+  - id: 22
+    title: "TRANSFER RESPONSE"
+    status: both
+    prompt: ["8. NON-QUALIFICATION TERMINALS", "15. CLOSING LINES"]
+    code: ["homecredit_lap.tools.LapAgentTools.transfer_lead", "homecredit_lap.rules.SAY"]
+    tests: ["test_09b_transfer_beats_partially_eligible_facts",
+            "test_09c_transfer_does_not_ask_remaining_items"]
+    scenarios: ["existing_loan_transfer.yaml"]
+
+  - id: 23
+    title: "PROPERTY TYPE"
+    status: both
+    prompt: ["6. PHASES AND THE 7-ITEM CHECKLIST", "APPENDIX A"]
+    code: ["homecredit_lap.parsing.parse_property_type", "homecredit_lap.rules.ELIGIBLE_PROPERTY_TYPES"]
+    config: ["product_rules.yaml:eligibility"]
+    tests: ["test_parse_property_type", "test_eligible_property_types_match_yaml",
+            "test_location_phrases_do_not_imply_property_type"]
+
+  - id: 24
+    title: "AGRICULTURAL PROPERTY DISQUALIFICATION"
+    status: both
+    prompt: ["15. CLOSING LINES", "APPENDIX A"]
+    code: ["homecredit_lap.rules._disqualifier"]
+    tests: ["test_02_agricultural_property_disqualifies",
+            "test_02b_agricultural_stops_the_checklist",
+            "test_02c_agricultural_detected_from_raw_text",
+            "test_25_agricultural_bundled_with_passing_facts_still_disqualifies",
+            "test_prompt_marks_agricultural_as_disqualifying"]
+    scenarios: ["agricultural.yaml"]
+
+  - id: 25
+    title: "OWNERSHIP STATUS"
+    status: both
+    prompt: ["APPENDIX A"]
+    code: ["homecredit_lap.parsing.parse_ownership"]
+    tests: ["test_08_joint_ownership_is_eligible", "test_08b_ownership_never_disqualifies",
+            "test_08c_family_property_is_clarified_not_assumed", "test_parse_ownership",
+            "test_parse_ownership_family_property_is_unclear",
+            "test_parse_ownership_business_does_not_imply_property"]
+
+  - id: 26
+    title: "ORIGINAL DOCUMENTS"
+    status: both
+    prompt: ["15. CLOSING LINES", "APPENDIX A"]
+    code: ["homecredit_lap.rules._disqualifier", "homecredit_lap.parsing.parse_documents"]
+    tests: ["test_04_missing_originals_disqualifies", "test_parse_documents",
+            "test_originals_alone_is_a_documents_answer",
+            "test_negative_documents_answers_are_detected"]
+
+  - id: 27
+    title: "LOAN AMOUNT (75 lakh cap)"
+    status: both
+    prompt: ["9. THE ₹75 LAKH CAP", "APPENDIX B"]
+    code: ["homecredit_lap.state.MAX_LOAN_AMOUNT", "homecredit_lap.rules.ACTION_OFFER_CAP",
+           "homecredit_lap.state.CallState.record"]
+    config: ["product_rules.yaml:offer"]
+    tests: ["test_07_above_cap_offers_75_lakh_instead_of_rejecting",
+            "test_07b_accepting_cap_rewrites_amount_and_continues",
+            "test_07c_refusing_cap_disqualifies", "test_07d_exactly_75_lakh_is_eligible",
+            "test_07e_amounts_under_cap_continue", "test_max_loan_amount_matches_yaml",
+            "test_prompt_states_the_75_lakh_cap", "test_loan_amount_schema_carries_the_cap"]
+    scenarios: ["cap_negotiation.yaml"]
+
+  - id: 28
+    title: "OCCUPATION"
+    status: both
+    prompt: ["APPENDIX A"]
+    code: ["homecredit_lap.parsing.parse_occupation", "homecredit_lap.rules.ELIGIBLE_OCCUPATIONS"]
+    tests: ["test_03d_self_employed_is_never_a_disqualifier", "test_parse_occupation",
+            "test_self_employed_phrase_is_not_read_as_salaried",
+            "test_salaried_phrases_still_detected",
+            "test_property_phrasing_does_not_imply_occupation"]
+    note: "Original did not cover 'freelancer' classification definitively; v2 treats it as self-employed (confirm)."
+
+  - id: 29
+    title: "INCOME MODE"
+    status: both
+    prompt: ["APPENDIX A", "15. CLOSING LINES"]
+    code: ["homecredit_lap.rules._disqualifier", "homecredit_lap.parsing.parse_income_mode"]
+    tests: ["test_03_cash_income_disqualifies", "test_parse_income_mode",
+            "test_16b_mixed_income_resolves_to_cash_disqualification"]
+
+  - id: 30
+    title: "OCCUPATION + INCOME DECISION TABLE"
+    status: both
+    prompt: ["APPENDIX A"]
+    code: ["homecredit_lap.rules._disqualifier"]
+    tests: ["test_03b_decision_table_cash_disqualifies_both_occupations",
+            "test_03c_decision_table_bank_continues_for_both_occupations"]
+
+  - id: 31
+    title: "MARKET VALUE (no threshold)"
+    status: both
+    prompt: ["APPENDIX A", "14. COMPLIANCE (non-negotiable)"]
+    code: ["homecredit_lap.rules._disqualifier"]
+    config: ["product_rules.yaml:eligibility"]
+    tests: ["test_26_market_value_has_no_threshold",
+            "test_27_low_market_value_does_not_block_qualification"]
+    note: >
+      Preserved exactly: no minimum property value, no LTV cap. test_26 locks this so
+      nobody can silently add one. See CHANGELOG open question 3 — a ₹50 lakh request
+      against a ₹10 lakh property currently qualifies, which is correct per the original
+      but may be commercially unintended.
+
+  - id: 32
+    title: "TENURE (3-15 years)"
+    status: both
+    prompt: ["APPENDIX A", "15. CLOSING LINES", "APPENDIX B"]
+    code: ["homecredit_lap.state.MIN_TENURE_YEARS", "homecredit_lap.state.MAX_TENURE_YEARS",
+           "homecredit_lap.parsing.parse_tenure_years"]
+    tests: ["test_05_06_tenure_out_of_window_disqualifies",
+            "test_05b_tenure_boundaries_inclusive_are_eligible",
+            "test_06b_tenure_given_in_months_is_converted",
+            "test_tenure_window_matches_yaml", "test_prompt_states_the_tenure_window",
+            "test_20c_tenure_correction_can_also_disqualify"]
+    scenarios: ["tenure_below_minimum.yaml"]
+
+  - id: 33
+    title: "COMPLETE ELIGIBILITY TABLE"
+    status: both
+    prompt: ["APPENDIX A"]
+    config: ["product_rules.yaml:eligibility"]
+    tests: ["test_eligible_property_types_match_yaml", "test_eligible_occupations_match_yaml"]
+
+  - id: 34
+    title: "IMMEDIATE DISQUALIFICATION RULE"
+    status: both
+    prompt: ["3. THE THREE GOLDEN RULES", "5. ROUTING PRIORITY"]
+    code: ["homecredit_lap.rules._disqualifier", "homecredit_lap.rules.evaluate"]
+    tests: ["test_02b_agricultural_stops_the_checklist",
+            "test_24_routing_priority_disqualification_over_collection",
+            "test_25_agricultural_bundled_with_passing_facts_still_disqualifies"]
+    scenarios: ["cash_income_bundled.yaml"]
+
+  - id: 35
+    title: "DO NOT INVENT ELIGIBILITY CRITERIA"
+    status: strengthened
+    prompt: ["14. COMPLIANCE (non-negotiable)"]
+    config: ["product_rules.yaml:compliance"]
+    tests: ["test_prompt_forbids_invented_criteria", "test_26_market_value_has_no_threshold"]
+    note: >
+      The full forbidden list (minimum property value, minimum income, credit score, age
+      limit, LTV, location restriction, collateral...) was compressed out of an early v2
+      draft and restored after test_prompt_forbids_invented_criteria failed.
+
+  - id: 36
+    title: "INTERRUPTIONS"
+    status: both
+    prompt: ["4. PER-TURN PROCEDURE (follow silently, every turn)", "6. PHASES AND THE 7-ITEM CHECKLIST"]
+    code: ["homecredit_lap.state.CallState.missing_items"]
+    tests: ["test_14_interruption_answers_then_resumes", "test_14b_interruption_facts_are_still_captured"]
+
+  - id: 37
+    title: "CUSTOMER QUESTIONS DURING QUALIFICATION"
+    status: prompt
+    prompt: ["10. ANSWERING QUESTIONS"]
+    tests: ["test_17_interest_rate_is_deflected_not_invented"]
+
+  - id: 38
+    title: "UNRELATED QUESTIONS"
+    status: prompt
+    prompt: ["10. ANSWERING QUESTIONS"]
+    tests: ["test_19_unrelated_question_does_not_end_call",
+            "test_19b_unrelated_question_does_not_invent_facts"]
+
+  - id: 39
+    title: "RAG RULES"
+    status: prompt
+    prompt: ["2. INJECTED CONTEXT", "10. ANSWERING QUESTIONS"]
+    note: "Priority order (system rules > RAG > conversation) preserved; product_context may be empty."
+
+  - id: 40
+    title: "HANDLING NATURAL SPEECH"
+    status: both
+    prompt: ["6. PHASES AND THE 7-ITEM CHECKLIST", "APPENDIX B"]
+    code: ["homecredit_lap.parsing.parse_amount", "homecredit_lap.parsing.extract_facts"]
+    tests: ["test_extract_never_guesses_absent_facts",
+            "test_extract_tenure_does_not_leak_into_amount"]
+
+  - id: 41
+    title: "NUMBER INTERPRETATION (Indian conventions)"
+    status: both
+    prompt: ["APPENDIX B"]
+    code: ["homecredit_lap.parsing.parse_amount", "homecredit_lap.parsing._expand_grouped"]
+    tests: ["test_parse_amount_indian_conventions", "test_parse_amount_digit_grouping",
+            "test_parse_amount_rejects_time_and_quantity_units",
+            "test_parse_amount_additive_phrase",
+            "test_parse_amount_does_not_sum_across_clauses",
+            "test_parse_amount_absolute_numeral_not_scaled"]
+
+  - id: 42
+    title: "CALLBACK TIME"
+    status: strengthened
+    prompt: ["8. NON-QUALIFICATION TERMINALS"]
+    code: ["homecredit_lap.parsing.parse_callback_time", "homecredit_lap.runtime.process_turn"]
+    tests: ["test_11c_busy_never_invents_a_time", "test_parse_callback_time",
+            "test_parse_callback_time_ambiguous_is_none",
+            "test_parse_callback_time_ignores_loan_amounts"]
+    note: "Original said 'clarify if ambiguous' but never defined ambiguous. v2 returns None for 'later'/'anytime'."
+
+  - id: 43
+    title: "CUSTOMER DECLINES"
+    status: strengthened
+    prompt: ["8. NON-QUALIFICATION TERMINALS", "15. CLOSING LINES"]
+    code: ["homecredit_lap.tools.LapAgentTools.mark_do_not_call", "homecredit_lap.rules.evaluate"]
+    tests: ["test_18_decline_ends_without_pressure", "test_18c_dnc_request_is_recorded",
+            "test_18d_dnc_beats_qualification",
+            "test_18b_decline_is_not_misread_as_wrong_person"]
+    scenarios: ["decline_and_dnc.yaml"]
+    note: "Original said 'respect the request' with no mechanism. v2 adds a DNC tool + terminal + CRM status."
+
+  - id: 44
+    title: "CUSTOMER BECOMES UPSET"
+    status: prompt
+    prompt: ["8. NON-QUALIFICATION TERMINALS", "15. CLOSING LINES"]
+
+  - id: 45
+    title: "CUSTOMER REQUESTS A HUMAN"
+    status: strengthened
+    prompt: ["8. NON-QUALIFICATION TERMINALS"]
+    note: >
+      Also added: 'are you a robot?' disclosure handling, which the original lacked
+      entirely. Warm transfer is NOT implemented — see CHANGELOG open question 6.
+
+  - id: 46
+    title: "FINAL HANDOFF GATE (11 conditions)"
+    status: code
+    code: ["homecredit_lap.rules.gate_report", "homecredit_lap.state.CallState.all_items_answered"]
+    tests: ["test_31_gate_report_blocks_when_any_criterion_fails",
+            "test_28_submit_refuses_while_items_are_missing",
+            "test_01c_all_seven_facts_reach_the_lead_payload"]
+
+  - id: 47
+    title: "FINAL QUALIFICATION RESPONSE"
+    status: both
+    prompt: ["15. CLOSING LINES"]
+    code: ["homecredit_lap.rules.SAY", "homecredit_lap.tools.LapAgentTools.submit_eligibility_facts"]
+    tests: ["test_01_normal_eligible_customer_qualifies", "test_32_lead_payload_contains_audit_trail"]
+
+  - id: 48
+    title: "NO PREMATURE APPROVAL"
+    status: both
+    prompt: ["14. COMPLIANCE (non-negotiable)"]
+    code: ["homecredit_lap.rules.SAY"]
+    tests: ["test_01b_no_premature_approval_language", "test_prompt_forbids_approval_language"]
+
+  - id: 49
+    title: "FINAL CALL TERMINATION STATES (5)"
+    status: both
+    prompt: ["5. ROUTING PRIORITY", "15. CLOSING LINES"]
+    code: ["homecredit_lap.state.Terminal"]
+    config: ["product_rules.yaml:terminals"]
+    tests: ["test_terminals_in_yaml_cover_the_engine", "test_30_terminal_states_are_final"]
+    note: "Original listed 5 terminals. v2 has 8: adds do_not_call, wrong_person, abandoned."
+
+  - id: 50
+    title: "TERMINAL STATE PRIORITY"
+    status: both
+    prompt: ["5. ROUTING PRIORITY"]
+    code: ["homecredit_lap.rules.evaluate"]
+    config: ["product_rules.yaml:routing_priority"]
+    tests: ["test_22_routing_priority_dnc_over_transfer",
+            "test_23_routing_priority_transfer_over_busy",
+            "test_24_routing_priority_disqualification_over_collection",
+            "test_routing_priority_in_yaml_has_nine_steps"]
+    note: >
+      The original stated priority in five places (10, 34, 50, 51, 64) and they disagreed.
+      v2 has one table, one ordered function, and tests for the conflicting cases.
+
+  - id: 51
+    title: "FIRST-MISSING-QUESTION RULE"
+    status: both
+    prompt: ["6. PHASES AND THE 7-ITEM CHECKLIST"]
+    code: ["homecredit_lap.state.CallState.first_missing", "homecredit_lap.rules.ASK"]
+    tests: ["test_12b_never_reasks_a_captured_item", "test_12c_checklist_is_never_restarted",
+            "test_34_every_checklist_item_has_a_prompt_line"]
+
+  - id: 52
+    title: "EXAMPLE: FULL OUT-OF-ORDER RESPONSE"
+    status: tests
+    tests: ["test_12_out_of_order_bundle", "test_extract_out_of_order_bundle"]
+    scenarios: ["out_of_order.yaml"]
+
+  - id: 53
+    title: "EXAMPLE: MULTIPLE ANSWERS WITH DISQUALIFICATION"
+    status: tests
+    tests: ["test_24_routing_priority_disqualification_over_collection",
+            "test_extract_cash_income_bundle"]
+    scenarios: ["cash_income_bundled.yaml"]
+
+  - id: 54
+    title: "EXAMPLE: AGRICULTURAL PROPERTY PROVIDED LATE"
+    status: tests
+    tests: ["test_25_agricultural_bundled_with_passing_facts_still_disqualifies"]
+
+  - id: 55
+    title: "EXAMPLE: EXISTING LOAN PROVIDED OUT OF ORDER"
+    status: tests
+    tests: ["test_09b_transfer_beats_partially_eligible_facts"]
+    scenarios: ["existing_loan_transfer.yaml"]
+
+  - id: 56
+    title: "EXAMPLE: 90 LAKH REQUEST"
+    status: tests
+    tests: ["test_07_above_cap_offers_75_lakh_instead_of_rejecting",
+            "test_07b_accepting_cap_rewrites_amount_and_continues"]
+    scenarios: ["cap_negotiation.yaml"]
+
+  - id: 57
+    title: "EXAMPLE: TENURE DISQUALIFICATION"
+    status: tests
+    tests: ["test_05_06_tenure_out_of_window_disqualifies"]
+    scenarios: ["tenure_below_minimum.yaml"]
+
+  - id: 58
+    title: "EXAMPLE: BUSY CUSTOMER"
+    status: tests
+    tests: ["test_11_busy_stops_qualification", "test_11b_busy_then_time_booked"]
+    scenarios: ["busy_callback.yaml"]
+
+  - id: 59
+    title: "EXAMPLE: CUSTOMER ASKS INTEREST RATE"
+    status: tests
+    tests: ["test_17_interest_rate_is_deflected_not_invented"]
+
+  - id: 60
+    title: "EXAMPLE: CUSTOMER INTERRUPTS"
+    status: tests
+    tests: ["test_14_interruption_answers_then_resumes"]
+
+  - id: 61
+    title: "EXAMPLE: CUSTOMER CHANGES ANSWER"
+    status: tests
+    tests: ["test_20_corrected_answer_can_disqualify"]
+    scenarios: ["correction_disqualifies.yaml"]
+
+  - id: 62
+    title: "EXAMPLE: QUALIFIED CUSTOMER"
+    status: tests
+    tests: ["test_01_normal_eligible_customer_qualifies"]
+    scenarios: ["qualified.yaml"]
+
+  - id: 63
+    title: "TESTING BEHAVIOR (20 mandated scenarios)"
+    status: tests
+    tests: ["test_01_normal_eligible_customer_qualifies", "test_02_agricultural_property_disqualifies",
+            "test_03_cash_income_disqualifies", "test_04_missing_originals_disqualifies",
+            "test_05_06_tenure_out_of_window_disqualifies", "test_07_above_cap_offers_75_lakh_instead_of_rejecting",
+            "test_08_joint_ownership_is_eligible", "test_09_10_existing_loan_or_emi_routes_to_transfer",
+            "test_11_busy_stops_qualification", "test_12_out_of_order_bundle",
+            "test_13_multiple_answers_captured_at_once", "test_14_interruption_answers_then_resumes",
+            "test_15_correction_replaces_previous_answer", "test_16_ambiguous_answers_trigger_clarification",
+            "test_17_interest_rate_is_deflected_not_invented", "test_18_decline_ends_without_pressure",
+            "test_19_unrelated_question_does_not_end_call", "test_20_corrected_answer_can_disqualify"]
+    note: >
+      All 20 mandated scenarios are covered. Scenarios 5+6 share one parametrised test and
+      9+10 share one parametrised test, so 20 scenarios map to 18 test functions; the
+      `mandated_20` block below lists every one explicitly and verify_coverage.py asserts
+      all 20 are accounted for.
+    mandated_20:
+      1:  {scenario: "Normal eligible customer",        tests: [test_01_normal_eligible_customer_qualifies, test_01b_no_premature_approval_language, test_01c_all_seven_facts_reach_the_lead_payload]}
+      2:  {scenario: "Agricultural property",           tests: [test_02_agricultural_property_disqualifies, test_02b_agricultural_stops_the_checklist, test_02c_agricultural_detected_from_raw_text]}
+      3:  {scenario: "Cash income",                     tests: [test_03_cash_income_disqualifies, test_03b_decision_table_cash_disqualifies_both_occupations]}
+      4:  {scenario: "Missing original documents",      tests: [test_04_missing_originals_disqualifies]}
+      5:  {scenario: "Tenure below 3 years",            tests: [test_05_06_tenure_out_of_window_disqualifies]}
+      6:  {scenario: "Tenure above 15 years",           tests: [test_05_06_tenure_out_of_window_disqualifies, test_05b_tenure_boundaries_inclusive_are_eligible]}
+      7:  {scenario: "Loan request above 75 lakh",      tests: [test_07_above_cap_offers_75_lakh_instead_of_rejecting, test_07b_accepting_cap_rewrites_amount_and_continues, test_07c_refusing_cap_disqualifies]}
+      8:  {scenario: "Joint ownership",                 tests: [test_08_joint_ownership_is_eligible, test_08b_ownership_never_disqualifies, test_08c_family_property_is_clarified_not_assumed]}
+      9:  {scenario: "Existing property loan",          tests: [test_09_10_existing_loan_or_emi_routes_to_transfer, test_09b_transfer_beats_partially_eligible_facts, test_09c_transfer_does_not_ask_remaining_items]}
+      10: {scenario: "EMI reduction request",           tests: [test_09_10_existing_loan_or_emi_routes_to_transfer, test_existing_loan_and_emi_detected_together]}
+      11: {scenario: "Busy customer",                   tests: [test_11_busy_stops_qualification, test_11b_busy_then_time_booked, test_11c_busy_never_invents_a_time, test_11d_busy_with_full_eligibility_still_ends_as_callback]}
+      12: {scenario: "Out-of-order answers",            tests: [test_12_out_of_order_bundle, test_12b_never_reasks_a_captured_item, test_12c_checklist_is_never_restarted]}
+      13: {scenario: "Multiple answers in one response",tests: [test_13_multiple_answers_captured_at_once, test_extract_multiple_answers]}
+      14: {scenario: "Customer interruption",           tests: [test_14_interruption_answers_then_resumes, test_14b_interruption_facts_are_still_captured]}
+      15: {scenario: "Customer correction",             tests: [test_15_correction_replaces_previous_answer, test_20b_correction_is_audited]}
+      16: {scenario: "Ambiguous documents",             tests: [test_16_ambiguous_answers_trigger_clarification, test_04b_ambiguous_documents_are_clarified_not_assumed, test_04c_clarified_yes_proceeds]}
+      17: {scenario: "Customer asks interest rate",     tests: [test_17_interest_rate_is_deflected_not_invented, test_17b_rate_question_intent_detected]}
+      18: {scenario: "Customer refuses the offer",      tests: [test_18_decline_ends_without_pressure, test_18b_decline_is_not_misread_as_wrong_person, test_18c_dnc_request_is_recorded, test_18d_dnc_beats_qualification]}
+      19: {scenario: "Customer asks unrelated questions",tests: [test_19_unrelated_question_does_not_end_call, test_19b_unrelated_question_does_not_invent_facts]}
+      20: {scenario: "Customer changes an answer",      tests: [test_20_corrected_answer_can_disqualify, test_20c_tenure_correction_can_also_disqualify]}
+
+  - id: 64
+    title: "BUSINESS RULES MUST NEVER BE OVERRIDDEN  [TRUNCATED IN SOURCE]"
+    status: gap
+    prompt: ["3. THE THREE GOLDEN RULES", "14. COMPLIANCE (non-negotiable)", "APPENDIX A"]
+    config: ["product_rules.yaml:compliance"]
+    note: >
+      The supplied prompt ends mid-sentence at 'Income -> Cash'. Sections after 64 are
+      missing. Property / documents / income / tenure rules were reconstructed from
+      sections 24, 26, 29 and 32 and are fully implemented, but ANY instruction that
+      lived only in the truncated tail is NOT covered. Re-send the tail to close this.
+
+# -----------------------------------------------------------------------------
+# v2 additions with no counterpart in the original
+# -----------------------------------------------------------------------------
+additions:
+  - title: "Compliance: OTP / PIN / Aadhaar / card number guard"
+    prompt: ["14. COMPLIANCE (non-negotiable)"]
+    why: "Outbound lending call in India; the original had no data-protection instruction."
+  - title: "AI-disclosure handling ('are you a robot?')"
+    prompt: ["8. NON-QUALIFICATION TERMINALS"]
+    why: "Original covered only 'can I speak to a person'."
+  - title: "Re-ask limit (MAX_REASKS = 2)"
+    code: ["homecredit_lap.runtime.MAX_REASKS"]
+    tests: ["test_29_reask_limit_prevents_interrogation",
+            "test_33_stalling_on_composite_item_does_not_crash",
+            "test_productive_turns_do_not_trip_the_reask_limit"]
+    why: "Nothing in the original stopped an infinite loop with an uncooperative customer."
+  - title: "Do-not-call suppression reaching the CRM"
+    code: ["homecredit_lap.tools.LapAgentTools.mark_do_not_call"]
+    tests: ["test_18c_dnc_request_is_recorded", "test_18d_dnc_beats_qualification"]
+    why: "Original said 'respect the request' with no recording mechanism."
+  - title: "Customer owns no property (property_type = none)"
+    code: ["homecredit_lap.state.PropertyType", "homecredit_lap.rules._disqualifier"]
+    why: "Original assumed the customer always owns a property."
+  - title: "No income source (occupation = none)"
+    code: ["homecredit_lap.rules._disqualifier"]
+    why: "Original covered salaried/self-employed only; unemployed/student/retired fell through."
+  - title: "Mixed income clarification"
+    code: ["homecredit_lap.state.IncomeMode", "homecredit_lap.rules._needs_clarification"]
+    tests: ["test_16b_mixed_income_resolves_to_cash_disqualification"]
+    why: "Original forced a binary bank/cash answer; 'some cash, some bank' had to be guessed."
+  - title: "Config / code / prompt drift detection"
+    tests: ["test_max_loan_amount_matches_yaml", "test_tenure_window_matches_yaml",
+            "test_record_tool_enum_matches_recordable_state_keys",
+            "test_retell_and_vapi_declare_the_same_custom_tools"]
+    why: "The original hardcoded ₹75,00,000 in nine places."

@@ -1,0 +1,11 @@
+name: "Scenario 5 — tenure below 3 years (disqualify)"
+customer_name: "Kavita Joshi"
+language: "en-IN"
+turns:
+  - customer: "Yes this is Kavita"
+    facts: {customer_verified: true}
+  - customer: "I'd like to repay it over two years"
+    facts: {tenure_years: 2}
+expect:
+  lead_status: "disqualified"
+  reason: "tenure_below_minimum"

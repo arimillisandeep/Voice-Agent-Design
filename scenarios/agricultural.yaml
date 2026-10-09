@@ -1,0 +1,17 @@
+name: "Scenario 2 — agricultural property (disqualify)"
+description: >
+  Agricultural land is disqualifying on its own. The agent must stop immediately and
+  must NOT ask ownership, documents, amount, income, value or tenure.
+customer_name: "Suresh Patil"
+language: "en-IN"
+turns:
+  - customer: "Yes this is Suresh"
+    facts: {customer_verified: true}
+  - customer: "It's my agricultural land"
+    facts: {property_type: agricultural}
+  - customer: "But I also have the original documents"
+    facts: {documents_original: "yes"}
+expect:
+  lead_status: "disqualified"
+  reason: "agricultural_property"
+  handoff_completed: false

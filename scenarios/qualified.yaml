@@ -1,0 +1,27 @@
+name: "Scenario 1 — normal eligible customer (full 7-item flow)"
+description: >
+  Happy path. Every checklist item answered once, in order. Must end in the
+  qualified terminal with handoff_completed = true.
+customer_name: "Rajesh Kumar"
+language: "en-IN"
+turns:
+  - customer: "Yes, this is Rajesh"
+    facts: {customer_verified: true}
+  - customer: "Sure, tell me"
+  - customer: "It's a residential property"
+    facts: {property_type: residential}
+  - customer: "Solely in my name"
+    facts: {ownership_status: sole}
+  - customer: "Yes, the originals are available"
+    facts: {documents_original: "yes"}
+  - customer: "I need around fifty lakh"
+    facts: {loan_amount: 5000000}
+  - customer: "I'm salaried and my salary is credited to my bank account"
+    facts: {occupation: salaried, income_mode: bank}
+  - customer: "It's worth about one crore"
+    facts: {market_value: 10000000}
+  - customer: "Ten years"
+    facts: {tenure_years: 10}
+expect:
+  lead_status: "qualified"
+  handoff_completed: true
